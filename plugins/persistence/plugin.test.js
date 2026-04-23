@@ -6,9 +6,11 @@ import { createPluginEvents } from '../../lib/plugins.js';
 import { register } from './index.js';
 
 describe('persistence plugin', () => {
-  let tmpDir, events, ctx, mockApp;
+  let tmpDir, events, ctx, mockApp, originalProfileDir;
 
   beforeEach(async () => {
+    originalProfileDir = process.env.CAMOFOX_PROFILE_DIR;
+    delete process.env.CAMOFOX_PROFILE_DIR;
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'camofox-persist-plugin-'));
     events = createPluginEvents();
     mockApp = {};
@@ -20,6 +22,8 @@ describe('persistence plugin', () => {
   });
 
   afterEach(async () => {
+    if (originalProfileDir === undefined) delete process.env.CAMOFOX_PROFILE_DIR;
+    else process.env.CAMOFOX_PROFILE_DIR = originalProfileDir;
     if (tmpDir) await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -44,6 +48,43 @@ describe('persistence plugin', () => {
     await events.emitAsync('session:creating', { userId: 'user-1', contextOptions });
 
     expect(contextOptions.storageState).toBe(storageStatePath);
+  });
+
+  test('imports bootstrap cookies even when persisted state already exists', async () => {
+    await register(mockApp, ctx, { profileDir: tmpDir });
+
+    const { getUserPersistencePaths } = await import('../../lib/persistence.js');
+    const { userDir, storageStatePath } = getUserPersistencePaths(tmpDir, 'user-bootstrap');
+    await fs.mkdir(userDir, { recursive: true });
+    await fs.mkdir(ctx.config.cookiesDir, { recursive: true });
+    await fs.writeFile(storageStatePath, JSON.stringify({ cookies: [], origins: [] }));
+    await fs.writeFile(
+      path.join(ctx.config.cookiesDir, 'cookies.txt'),
+      '.example.com\tTRUE\t/\tTRUE\t1893456000\tsession_id\tbootstrap-token\n'
+    );
+
+    const mockContext = {
+      addCookies: jest.fn(async () => {}),
+      storageState: jest.fn(async ({ path: p }) => {
+        await fs.writeFile(p, JSON.stringify({
+          cookies: [{ name: 'session_id', value: 'bootstrap-token', domain: '.example.com', path: '/' }],
+          origins: [],
+        }));
+      }),
+    };
+
+    await events.emitAsync('session:created', { userId: 'user-bootstrap', context: mockContext });
+
+    expect(mockContext.addCookies).toHaveBeenCalledWith([
+      expect.objectContaining({
+        name: 'session_id',
+        value: 'bootstrap-token',
+        domain: '.example.com',
+        path: '/',
+        secure: true,
+      }),
+    ]);
+    expect(mockContext.storageState).toHaveBeenCalled();
   });
 
   test('checkpoints on session:cookies:import', async () => {

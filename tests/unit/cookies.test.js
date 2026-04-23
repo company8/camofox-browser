@@ -1,4 +1,7 @@
+import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'path';
+import net from 'node:net';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import { launchServer } from '../../lib/launcher.js';
@@ -6,19 +9,43 @@ import { loadConfig } from '../../lib/config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const TEST_API_KEY = 'test-cookie-key-' + crypto.randomUUID();
+const TEST_API_KEY='test-cookie-key-' + crypto.randomUUID();
 let serverProcess = null;
 let serverUrl = null;
+let serverCookiesDir = null;
+
+async function getAvailablePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+    server.on('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      const port = typeof address === 'object' && address ? address.port : null;
+      server.close((err) => {
+        if (err) return reject(err);
+        resolve(port);
+      });
+    });
+  });
+}
 
 async function startServerWithApiKey(apiKey) {
-  const port = Math.floor(3100 + Math.random() * 900);
+  const port = await getAvailablePort();
   const cfg = loadConfig();
   const pluginDir = path.join(__dirname, '../..');
+  serverCookiesDir = await fs.mkdtemp(path.join(os.tmpdir(), 'camofox-test-cookies-'));
 
   serverProcess = launchServer({
     pluginDir,
     port,
-    env: { ...cfg.serverEnv, CAMOFOX_API_KEY: apiKey, DEBUG_RESPONSES: 'false' },
+    env: {
+      ...cfg.serverEnv,
+      CAMOFOX_API_KEY: apiKey,
+      DEBUG_RESPONSES: 'false',
+      ENABLE_VNC: '0',
+      CAMOFOX_COOKIES_DIR: serverCookiesDir,
+    },
     log: { info: () => {}, error: (msg) => console.error(msg) },
   });
 
@@ -36,11 +63,17 @@ async function startServerWithApiKey(apiKey) {
 }
 
 async function startServerWithoutApiKey() {
-  const port = Math.floor(3100 + Math.random() * 900);
+  const port = await getAvailablePort();
   const cfg = loadConfig();
   const pluginDir = path.join(__dirname, '../..');
 
-  const env = { ...cfg.serverEnv, DEBUG_RESPONSES: 'false' };
+  serverCookiesDir = await fs.mkdtemp(path.join(os.tmpdir(), 'camofox-test-cookies-'));
+  const env = {
+    ...cfg.serverEnv,
+    DEBUG_RESPONSES: 'false',
+    ENABLE_VNC: '0',
+    CAMOFOX_COOKIES_DIR: serverCookiesDir,
+  };
   delete env.CAMOFOX_API_KEY;
 
   serverProcess = launchServer({
@@ -66,15 +99,25 @@ async function startServerWithoutApiKey() {
 function stopServer() {
   return new Promise((resolve) => {
     if (!serverProcess) return resolve();
-    serverProcess.on('close', () => {
-      serverProcess = null;
-      serverUrl = null;
+    const proc = serverProcess;
+    const killTimer = setTimeout(() => {
+      if (proc.exitCode === null && proc.signalCode === null) proc.kill('SIGKILL');
+    }, 5000);
+    proc.once('close', () => {
+      clearTimeout(killTimer);
+      if (serverProcess === proc) {
+        serverProcess = null;
+        serverUrl = null;
+      }
+      const cookiesDir = serverCookiesDir;
+      serverCookiesDir = null;
+      if (cookiesDir) {
+        fs.rm(cookiesDir, { recursive: true, force: true }).finally(resolve);
+        return;
+      }
       resolve();
     });
-    serverProcess.kill('SIGTERM');
-    setTimeout(() => {
-      if (serverProcess) serverProcess.kill('SIGKILL');
-    }, 5000);
+    proc.kill('SIGTERM');
   });
 }
 

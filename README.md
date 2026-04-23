@@ -89,13 +89,19 @@ The included `Makefile` auto-detects your CPU architecture and pre-downloads Cam
 # Build and start (auto-detects arch: aarch64 on M1/M2, x86_64 on Intel)
 make up
 
+# Build and start with persistent profiles + bootstrap cookies from ~/.camofox
+make up PERSISTENCE=1
+
+# Build and start with persistent profiles + VNC web access on http://localhost:6080/vnc.html
+make up PERSISTENCE=1 VNC=1
+
 # Stop and remove the container
 make down
 
-# Force a clean rebuild (e.g. after upgrading VERSION/RELEASE)
+# Rebuild from scratch
 make reset
 
-# Just download binaries (without building)
+# Fetch binaries only
 make fetch
 
 # Override arch or version explicitly
@@ -150,11 +156,6 @@ cp ~/Downloads/linkedin_cookies.txt ~/.camofox/cookies/linkedin.txt
 
 The default directory is `~/.camofox/cookies/`. Override with `CAMOFOX_COOKIES_DIR`.
 
-**5. Ask your agent to import them:**
-
-> Import my LinkedIn cookies from linkedin.txt
-
-The agent calls `camofox_import_cookies` → reads the file → POSTs to the server with the Bearer token → cookies are injected into the browser session. Subsequent `camofox_create_tab` calls to linkedin.com will be authenticated.
 
 #### How it works
 
@@ -182,6 +183,8 @@ Camoufox browser session                 (authenticated browsing)
 ### Session Persistence
 
 By default, camofox persists each user's cookies and localStorage to `~/.camofox/profiles/`. Sessions survive browser restarts — log in once (via cookies or VNC), and subsequent sessions restore the authenticated state automatically.
+
+For the local Docker workflow in this fork, use `make up PERSISTENCE=1` so `~/.camofox` is mounted into the container. Plain `make up` is stateless.
 
 ```
 ~/.camofox/
