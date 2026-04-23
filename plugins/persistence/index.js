@@ -72,23 +72,21 @@ export async function register(app, ctx, pluginConfig = {}) {
     }
   });
 
-  // After session is created: import bootstrap cookies if no persisted state,
-  // and track the context for later checkpointing
+  // After session is created: always try bootstrap cookies to preserve the
+  // original pre-plugin / PR #62 behavior where dropping ~/.camofox/cookies/cookies.txt
+  // re-seeds login state for new sessions, even if a persisted storageState exists.
+  // Persist immediately when bootstrap import adds cookies so restarts keep the seeded state.
   events.on('session:created', async ({ userId, context }) => {
     activeSessions.set(userId, context);
 
-    // If no persisted state was restored, try bootstrap cookies
-    const existingState = await loadPersistedStorageState(profileDir, userId, logger);
-    if (!existingState) {
-      const result = await importBootstrapCookies({
-        cookiesDir: config.cookiesDir,
-        context,
-        logger,
-      });
-      if (result.imported > 0) {
-        log('info', 'bootstrap cookies imported', { userId, count: result.imported, source: result.source });
-        await checkpoint(userId, context, 'bootstrap_cookies');
-      }
+    const result = await importBootstrapCookies({
+      cookiesDir: config.cookiesDir,
+      context,
+      logger,
+    });
+    if (result.imported > 0) {
+      log('info', 'bootstrap cookies imported', { userId, count: result.imported, source: result.source });
+      await checkpoint(userId, context, 'bootstrap_cookies');
     }
   });
 

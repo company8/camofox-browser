@@ -14,7 +14,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * All process.env reads live here — callers get a plain config object.
  */
 export function resolveVncConfig(pluginConfig = {}) {
-  const enabled = process.env.ENABLE_VNC === '1' || pluginConfig.enabled === true;
+  const enabled = process.env.ENABLE_VNC === '0'
+    ? false
+    : (process.env.ENABLE_VNC === '1' || pluginConfig.enabled === true);
 
   const rawResolution = process.env.VNC_RESOLUTION || pluginConfig.resolution || '1920x1080';
   const resolution = rawResolution.includes('x', rawResolution.indexOf('x') + 1)

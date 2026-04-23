@@ -21,9 +21,26 @@ endif
 IMAGE        := camofox-browser:$(VERSION)-$(ARCH)
 CAMOUFOX_ZIP := dist/camoufox-$(ARCH).zip
 YTDLP_BIN    := dist/yt-dlp-$(ARCH)
+CAMOFOX_HOME ?= $(HOME)/.camofox
+PERSISTENCE  ?= 0
+VNC          ?= 0
 
 CAMOUFOX_URL := https://github.com/daijro/camoufox/releases/download/v$(VERSION)-$(RELEASE)/camoufox-$(VERSION)-$(RELEASE)-lin.$(CAMOUFOX_ARCH).zip
 YTDLP_URL    := https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux$(YTDLP_ARCH)
+
+RUN_ENV :=
+RUN_VOLUMES :=
+RUN_PORTS := -p 9377:9377
+ifeq ($(PERSISTENCE),1)
+RUN_ENV += -e CAMOFOX_PROFILE_DIR=/root/.camofox/profiles
+RUN_ENV += -e CAMOFOX_COOKIES_DIR=/root/.camofox/cookies
+RUN_VOLUMES += -v $(CAMOFOX_HOME):/root/.camofox
+endif
+ifeq ($(VNC),1)
+RUN_ENV += -e ENABLE_VNC=1
+RUN_ENV += -e VNC_BIND=0.0.0.0
+RUN_PORTS += -p 6080:6080
+endif
 
 .PHONY: build build-arm64 build-x86 fetch fetch-arm64 fetch-x86 up down reset clean
 
@@ -63,7 +80,10 @@ up:
 	@if ! docker image inspect $(IMAGE) > /dev/null 2>&1; then \
 	  $(MAKE) build; \
 	fi
-	docker run -d --restart unless-stopped --name camofox-browser -p 9377:9377 $(IMAGE)
+	@if [ "$(PERSISTENCE)" = "1" ]; then \
+	  mkdir -p "$(CAMOFOX_HOME)/cookies" "$(CAMOFOX_HOME)/profiles"; \
+	fi
+	docker run -d --restart unless-stopped --name camofox-browser $(RUN_PORTS) $(RUN_ENV) $(RUN_VOLUMES) $(IMAGE)
 
 down:
 	docker stop camofox-browser && docker rm camofox-browser

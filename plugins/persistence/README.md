@@ -28,7 +28,7 @@ CAMOFOX_PROFILE_DIR=/data/profiles
 ## How it works
 
 - **Session create**: If a persisted `storageState` exists for the `userId`, it's restored into the new Playwright context.
-- **First run**: If no persisted state exists, bootstrap cookies from `CAMOFOX_COOKIES_DIR/cookies.txt` are imported (if present).
+- **Bootstrap seeding**: `CAMOFOX_COOKIES_DIR/cookies.txt` is reapplied on each new session when present, matching the original PR #62 behavior so dropping a cookie file reliably re-seeds login state.
 - **Cookie import / session close / shutdown**: Storage state is checkpointed to disk via atomic tmp-write + rename.
 - **User isolation**: Each `userId` maps to a deterministic SHA256-hashed subdirectory under `profileDir`, so arbitrary userIds are path-safe.
 

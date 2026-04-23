@@ -33,6 +33,15 @@ describe('profile persistence helpers', () => {
     expect(path.basename(first.userDir)).not.toContain(':');
   });
 
+  test('getUserPersistencePaths expands a leading tilde to the user home directory', () => {
+    const profileDir = path.join('~', '.camofox', 'profiles');
+    const paths = getUserPersistencePaths(profileDir, 'user-tilde');
+    const expectedRoot = path.join(os.homedir(), '.camofox', 'profiles');
+
+    expect(paths.rootDir).toBe(expectedRoot);
+    expect(paths.userDir.startsWith(expectedRoot)).toBe(true);
+  });
+
   test('loadPersistedStorageState returns undefined when no state exists', async () => {
     await expect(loadPersistedStorageState(tmpDir, 'user-1')).resolves.toBeUndefined();
   });
@@ -115,3 +124,4 @@ describe('profile persistence helpers', () => {
     expect(leftovers).toEqual([]);
   });
 });
+

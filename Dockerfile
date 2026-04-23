@@ -30,6 +30,8 @@ RUN apt-get update && apt-get install -y \
     libgbm1 \
     # Xvfb virtual display — runs Camoufox as if on a real desktop (better anti-detection)
     xvfb \
+    novnc \
+    python3-websockify \
     # Fonts
     fonts-liberation \
     fonts-noto-color-emoji \
