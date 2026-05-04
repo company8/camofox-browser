@@ -1,10 +1,10 @@
 /**
- * Tests for scripts/plugin.js — plugin install, remove, list.
+ * Tests for scripts/plugin.js -- plugin install, remove, list.
  */
 
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execSync } from './exec.js';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -32,7 +32,7 @@ describe('plugin list', () => {
   test('lists youtube as enabled', () => {
     const out = run('list');
     expect(out).toContain('youtube');
-    expect(out).toContain('✓');
+    expect(out).toContain('[ok]');
   });
 });
 

@@ -1,24 +1,18 @@
-import { startServer, stopServer, getServerUrl } from '../helpers/startServer.js';
-import { startTestSite, stopTestSite, getTestSiteUrl } from '../helpers/testSite.js';
 import { createClient } from '../helpers/client.js';
 import { PNG } from 'pngjs';
+import { getSharedEnv } from './sharedEnv.js';
 
 describe('Snapshot with includeScreenshot', () => {
   let serverUrl;
   let testSiteUrl;
 
-  beforeAll(async () => {
-    await startServer(9381);
-    serverUrl = getServerUrl();
+  beforeAll(() => {
+    const env = getSharedEnv();
+    serverUrl = env.serverUrl;
+    testSiteUrl = env.testSiteUrl;
+  });
 
-    await startTestSite();
-    testSiteUrl = getTestSiteUrl();
-  }, 120000);
-
-  afterAll(async () => {
-    await stopTestSite();
-    await stopServer();
-  }, 30000);
+  // Server lifecycle managed by globalSetup/globalTeardown
 
   test('snapshot without includeScreenshot has no screenshot field', async () => {
     const client = createClient(serverUrl);
@@ -154,7 +148,7 @@ describe('Snapshot with includeScreenshot', () => {
       expect(png.width).toBeGreaterThan(0);
       expect(png.height).toBeGreaterThan(0);
 
-      // Count red pixels (R=255, G=0, B=0) — the 200x200 red box should produce many
+      // Count red pixels (R=255, G=0, B=0) -- the 200x200 red box should produce many
       let redPixels = 0;
       for (let i = 0; i < png.data.length; i += 4) {
         const r = png.data[i];

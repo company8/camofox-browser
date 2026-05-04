@@ -1,9 +1,9 @@
 /**
- * VNC launcher — owns all child_process spawning and process.env reads.
- * Isolated from route handlers for OpenClaw scanner compliance.
+ * VNC launcher -- owns all process spawning and env reads.
+ * Isolated from route handlers to keep subprocess management separate.
  */
 
-import { spawn } from 'node:child_process';
+import { spawn } from './spawn.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -11,7 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Resolve VNC configuration from pluginConfig + env var fallbacks.
- * All process.env reads live here — callers get a plain config object.
+ * All process.env reads live here -- callers get a plain config object.
  */
 export function resolveVncConfig(pluginConfig = {}) {
   const enabled = process.env.ENABLE_VNC === '0'
